@@ -104,10 +104,9 @@ class QueueTable:
 
     @staticmethod
     def best_point_method(p1, k=None):
-
         if k is None:
             k = [1 for _ in p1]
-        total = 0
+            total = 0
         else:
             pass
     # sum lambda = 1

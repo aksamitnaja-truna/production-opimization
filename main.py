@@ -1,6 +1,5 @@
-from json_handler import JsonHandler
 from table import QueueTable
-from connnector import DataBaseConnection
+from connector import DataBaseConnection
 
 
 def main_criterion_rank():
@@ -25,7 +24,6 @@ def task():
 
     # normalization form (132..-432..) -> (0-1)
     table.normalization()
-    table.print_table()
 
     #
     id_list = table.queue_sorting(QueueTable.best_point_method)
