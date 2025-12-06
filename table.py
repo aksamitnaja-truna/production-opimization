@@ -1,8 +1,8 @@
 from collections import defaultdict
 import pandas as pd
 import os
+from priority import str_prior
 
-from pandas.core.common import consensus_name_attr
 
 
 class QueueTable:
@@ -12,8 +12,11 @@ class QueueTable:
         self.production_priority_table = None
 
         self.table =  None
+        self.sorted_table = None
         self.trend = None
         self.value_map = None
+
+        self.consensus_points = None
 
     def load_data(self):
         for table_name in ('details', 'production_priority'):
@@ -39,26 +42,23 @@ class QueueTable:
                       'tech_readiness': 'max'}
 
 
-    def convert_table_to_numeric(self):
-        self.table = {}
-        self.table['header'] = self.production_priority_table[0][1:]
-        for row_idx in range(1, len(self.production_priority_table)):
-            row = list(self.production_priority_table[row_idx][1:]).copy()
-            for cell_idx in range(len(row)):
-                if isinstance(row[cell_idx], str):
-                    feature = self.production_priority_table[0][cell_idx + 1]
-                    row[cell_idx] = self.velue_map[feature][row[cell_idx]]
-            self.table[self.production_priority_table[row_idx][0]] = row
+
 
 
     def normalization(self):
+        self.table = []
+        for index, row in enumerate(self.production_priority_table):
+            self.table.append(list(row[2:]))
+
         # define min/max value in each feature
         bounds_values = defaultdict(list)
-        for id, row in self.table.items():
-            if id == 'header':
+        for i, row in enumerate(self.table):
+            if i == 0:
                 continue
-            for j, cell in enumerate(row):
-                feature = self.table['header'][j]
+            for j, cell in enumerate(row, start=0):
+                if j == 0:
+                    continue
+                feature = self.table[0][j]
                 if len(bounds_values[feature]) == 0:
                     bounds_values[feature].extend([float(cell), float(cell)])
                 if float(cell) < bounds_values[feature][0]:
@@ -70,7 +70,9 @@ class QueueTable:
         for i in range(1, len(self.table)):
             row = self.table[i]
             for j, cell in enumerate(row):
-                feature = self.table['header'][j]
+                if j == 0:
+                    continue
+                feature = self.table[0][j]
                 min_v,  max_v = bounds_values[feature][0], bounds_values[feature][1]
                 value = (float(cell) - min_v) / (max_v - min_v)
                 if self.trend[feature] == 'min':
@@ -83,24 +85,26 @@ class QueueTable:
         # print(self.table)
 
     @staticmethod
-    def less_then(p1, p2):
+    def p1_less_then_p2(p1, p2):
+
         if len(p1) != len(p2):
             raise Exception
         size = len(p1)
         for i in range(size):
             if p1[i] >= p2[i]:
                 return False
-            return True
+        return True
 
 
     def is_consensus_point(self, p1):
-        iter_points = iter(self.table.values())
+        iter_points = iter(self.table)
         header = next(iter_points)
+        print(p1[3:])
         for p2  in iter_points:
-            if  not QueueTable.less_then(p1, p2):
-                return False
-        return True
-
+            if  QueueTable.p1_less_then_p2(p1[3:], p2[1:]):
+                self.consensus_points.add(p1[0])
+                return True
+        return False
 
     @staticmethod
     def best_point_method(p1, k=None):
@@ -132,30 +136,38 @@ class QueueTable:
 
 
     def queue_sorting(self, method, *args):
+        self.consensus_points = set()
 
-        res_table = [(detail_id, row) for detail_id, row  in self.table.items()  if detail_id != 'header']
-
-        res_table.sort(
+        priors_id, details_id = zip(*[(row[0], row[1]) for row in self.production_priority_table])
+        self.sorted_table = [[prior_id, detail_id, *row] for prior_id, detail_id, row  in zip(priors_id, details_id, self.table)]
+        header, rest = self.sorted_table[0], self.sorted_table[1:]
+        rest.sort(
             key=lambda x: [
-                x[1][self.table['header'].index('priority')], # high,normal, low
-                not self.is_consensus_point(x[1]),
-                method(x[1], *args)
+                x[self.table[0].index('priority') + 2],
+                not self.is_consensus_point(x),
+                method(x[2:], *args)
             ],
             reverse=True
         )
-        return [table_item[0] for table_item in res_table]
+        self.sorted_table = [header] + rest
+        print(self.consensus_points)
 
 
-    def report(self, id_list, folder_path):
-        report_table = []
-        report_table.append([*self.details_table[0], *self.production_priority_table[0][1:]])
+
+    def report(self, folder_path):
+
+
         hashed_details = {detail_id: [name] for detail_id, name in self.details_table[1:]}
-        hashed_production_priority = {row[0]: row[1:] for row in self.production_priority_table[1:]}
+        report_table = []
+        sorted_table_iter = iter(self.sorted_table)
+        header = next(sorted_table_iter)
+        header.insert(2, 'name')
+        report_table.append(header)
+        for row in sorted_table_iter:
+            is_consensus = row[0] in self.consensus_points
+            report_table.append([*row[:2], *hashed_details[row[1]], str_prior(row[2], is_consensus), *row[3:]])
 
-
-        for detail_id in id_list:
-            report_table.append([detail_id, *hashed_details[detail_id], *hashed_production_priority[detail_id]])
-
+        # print(report_table)
         df = pd.DataFrame(report_table[1:], columns=report_table[0])
         excel_filename = 'production_report.xlsx'
         df.to_excel(os.path.join(folder_path, excel_filename), index=False, engine='openpyxl')

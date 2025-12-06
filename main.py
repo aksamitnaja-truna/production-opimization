@@ -19,16 +19,14 @@ def task():
     # load data from db to model
     table.load_data()
 
-    # from str -> digit
-    table.convert_table_to_numeric()
 
     # normalization form (132..-432..) -> (0-1)
     table.normalization()
 
     #
-    id_list = table.queue_sorting(QueueTable.best_point_method)
+    table.queue_sorting(QueueTable.best_point_method)
 
-    table.report(id_list, folder_path='./reports')
+    table.report(folder_path='./reports')
 
 
 if __name__ == '__main__':

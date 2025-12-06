@@ -18,7 +18,8 @@ class DataBaseConnection:
     def create_production_priority_table(self):
         self.cursor.execute(
             ''' CREATE TABLE IF NOT EXISTS production_priority (
-                    id INTEGER NOT NULL,
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    detail_id INTEGER NOT NULL,
                     priority INTEGER NOT NULL,
                     overdue INTEGER NOT NULL,
                     execution time INTEGER NOT NULL,
@@ -42,7 +43,8 @@ class DataBaseConnection:
 
         # Данные для таблицы details
         details_data = [
-            (1, 'Шестеренка ведущая',),
+            (0, 'Шестеренка ведущая',),
+            (1, 'Муфта кулачковая',),
             (2, 'Вал промежуточный',),
             (3, 'Корпус редуктора',),
             (4, 'Подшипник упорный',),
@@ -51,7 +53,6 @@ class DataBaseConnection:
             (7, 'Втулка бронзовая',),
             (8, 'Колесо зубчатое',),
             (9, 'Ось вращения',),
-            (10, 'Муфта кулачковая',)
         ]
 
         self.create_production_priority_table()
@@ -130,17 +131,28 @@ class DataBaseConnection:
             (1, 3, 25, 650.00, 55, 3.6, 88),
             (3, 8, 64, 3300.00, 89, 1.3, 79),
             (2, 9, 70, 1800.00, 84, 1.7, 68),
-            (5, 4, 40, 5200.00, 92, 1.2, 89)
+            (5, 4, 40, 5200.00, 92, 1.2, 89),
+            (5, -1, 141, 299.00, 101, 0.29, 29)
         ]
+        #
+        # 'overdue': 'max',
+        # 'execution': 'min',
+        # 'profitability': 'max',
+        # 'bottleneck_load': 'min',
+        # 'turnover_rate': 'max',
+        # 'tech_readiness': 'max'}
+        worst = [min, max, min, max, min, min]
+        min_p = [worst[i - 1](feature) for i, feature in  enumerate(zip(*priority_data)) if i >= 1]
+        print(min_p)
 
-        priority_data = [(random.sample(details_data, 1)[0][0], *row) for row in priority_data]
+        priority_data = [(i, random.sample(details_data, 1)[0][0], *row) for i, row in enumerate(priority_data)]
 
 
         # Вставляем данные в production_priority
         self.cursor.executemany(
             '''INSERT INTO production_priority 
-            (id, priority, overdue, execution, profitability, bottleneck_load, turnover_rate, tech_readiness) 
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)''',
+            (id, detail_id, priority, overdue, execution, profitability, bottleneck_load, turnover_rate, tech_readiness) 
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)''',
             priority_data
         )
 

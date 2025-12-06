@@ -8,8 +8,11 @@ class PriorityLevels:
     }
 
     @staticmethod
-    def get_priority(priority):
-        return PriorityLevels._config.get(
-            priority,
-            f"Wrong Priority value ~{priority}, must be in (1, 2, 3, 4, 5)"
-        )
+    def get_priority(priority, is_consensus=False):
+
+        msg = PriorityLevels._config.get(priority, None)
+        if msg is None:
+            return f'not Valid priority ~{priority}'
+        return f'{msg} (consensus)' if is_consensus else msg
+# alias
+str_prior = PriorityLevels.get_priority
