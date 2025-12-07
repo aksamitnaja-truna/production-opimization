@@ -14,13 +14,17 @@ prodopt - Оптимизатор приоритетов производства
 
 import sys
 import argparse
+import sqlite3
 from pathlib import Path
 
-from connector import DataBaseConnection
 from table import QueueTable
 
+import sqlite3
+import os
+from pathlib import Path
 
-def parse_weights(weights_str: str) -> list[float]:
+
+def parse_weights(weights_str: str) -> iter:
     """Парсит строку вида 'priority=0.3,overdue=0.2'"""
     if not weights_str:
         return {}
@@ -35,9 +39,9 @@ def parse_weights(weights_str: str) -> list[float]:
             pass
 
 
-    pos = ['overdue', 'execution', 'profitability', 'bottleneck', 'turnover', 'readiness']
+    pos = ['overdue', 'execution', 'profitability', 'bottleneck_load', 'turnover_rate', 'tech_readiness']
     weights_by_position = [weights.get(pos_i, None) for pos_i in pos]
-    return weights_by_position
+    yield from weights_by_position
 
 
 
@@ -69,16 +73,16 @@ def main():
     parser.add_argument(
         '--output', '-o',
         type=Path,
-        default=Path('optimization_report.csv'),
+        default=Path('optimization_report.xlsx'),
         required=False,
         help='Файл для отчета'
     )
 
     parser.add_argument(
         '--tables',
-        nargs=2,
+        nargs=3,
         default=['details', 'production_priority', 'criteria_trend'],
-        metavar=('ДЕТАЛИ', 'ПРИОРИТЕТЫ'),
+        metavar=('ДЕТАЛИ', 'ПРИОРИТЕТЫ', 'НАПРАВЛЕНИЕ ОПТИМИЗАЦИИ'),
         required=False,
         help='Имена таблиц: детали приоритеты'
     )
@@ -101,7 +105,7 @@ def main():
 
     # print(db_name, method_name, tables, output, weights,  sep='\n')
 
-    db_conn = DataBaseConnection(db_name)
+    db_conn = sqlite3.connect(db_name)
     table = QueueTable(db_conn, *tables)
     table.load_data()
     table.normalization()

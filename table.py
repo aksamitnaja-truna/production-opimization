@@ -15,6 +15,7 @@ class QueueTable:
         ):
 
         self.db_conn = db_conn
+        self.cursor = self.db_conn.cursor()
         self.details_table = None
         self.production_priority_table = None
         self.table_names = [
@@ -33,9 +34,9 @@ class QueueTable:
         local_table_names = ['details', 'production_priority', 'criteria_trend']
         for local_table_name, table_name in zip(local_table_names, self.table_names)   :
             try:
-                self.db_conn.cursor.execute(f"SELECT * FROM {table_name}")
-                rows = self.db_conn.cursor.fetchall()
-                columns = [description[0] for description in self.db_conn.cursor.description]
+                self.cursor.execute(f"SELECT * FROM {table_name}")
+                rows = self.cursor.fetchall()
+                columns = [description[0] for description in self.cursor.description]
                 if local_table_name == 'details':
                     self.details_table = [columns, *rows]
                 elif local_table_name == 'production_priority':
@@ -141,7 +142,7 @@ class QueueTable:
 
     def queue_sorting(self, method, *args):
         self.consensus_points = set()
-
+        args = list(*args)
         priors_id, details_id = zip(*[(row[0], row[1]) for row in self.production_priority_table])
         self.sorted_table = [[prior_id, detail_id, *row] for prior_id, detail_id, row  in zip(priors_id, details_id, self.table)]
         header, rest = self.sorted_table[0], self.sorted_table[1:]
@@ -149,7 +150,7 @@ class QueueTable:
             key=lambda x: [
                 x[self.table[0].index('priority') + 2],
                 not self.is_consensus_point(x),
-                method(x[3:], *args)
+                method(x[3:], args)
             ],
             reverse=True
         )
@@ -158,7 +159,7 @@ class QueueTable:
 
 
 
-    def report(self, folder_path):
+    def report(self, folder_path='./production_report.xlsx'):
 
 
         hashed_details = {detail_id: [name] for detail_id, name in self.details_table[1:]}
@@ -173,8 +174,7 @@ class QueueTable:
 
         # print(report_table)
         df = pd.DataFrame(report_table[1:], columns=report_table[0])
-        excel_filename = 'production_report.xlsx'
-        df.to_excel(os.path.join(folder_path, excel_filename), index=False, engine='openpyxl')
+        df.to_excel(folder_path, index=False, engine='openpyxl')
 
     def print_table(self):
         print(self.table)
