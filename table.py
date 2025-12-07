@@ -108,7 +108,6 @@ class QueueTable:
     def is_consensus_point(self, p1):
         iter_points = iter(self.table)
         header = next(iter_points)
-        print(p1[3:])
         for p2  in iter_points:
             if  QueueTable.p1_less_then_p2(p1[3:], p2[1:]):
                 self.consensus_points.add(p1[0])
@@ -121,6 +120,7 @@ class QueueTable:
             k = [1 for _ in p1]
         else:
             if sum(k) != 1 or len(k) != len(p1):
+                # print(sum(k), len(k), len(p1))
                 raise Exception
         total = 0
 
@@ -131,12 +131,12 @@ class QueueTable:
     @staticmethod
     def additive_method(point: list[float], factors=None) -> float:
         if factors is None:
-            factors = [1 for _ in p1]
+            factors = [1 for _ in point]
         else:
             if sum(factors) != 1 or len(factors) != len(p1):
                 raise Exception
 
-        return  sum([value * factor for value, factor in zip(point, factors.values())])
+        return  sum([value * factor for value, factor in zip(point, factors)])
 
 
     def queue_sorting(self, method, *args):
@@ -149,12 +149,12 @@ class QueueTable:
             key=lambda x: [
                 x[self.table[0].index('priority') + 2],
                 not self.is_consensus_point(x),
-                method(x[2:], *args)
+                method(x[3:], *args)
             ],
             reverse=True
         )
         self.sorted_table = [header] + rest
-        print(self.consensus_points)
+        # print(self.consensus_points)
 
 
 

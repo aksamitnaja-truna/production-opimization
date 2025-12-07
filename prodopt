@@ -1,0 +1,119 @@
+#!/usr/bin/env python3
+# prodopt
+"""
+prodopt - Оптимизатор приоритетов производства
+
+Использование:
+  prodopt --db <путь> --method <метод> [опции]
+
+Примеры:
+  prodopt --db production.db --method multiplicative
+  prodopt --db data.db --method best-point --output report.csv
+  prodopt --db test.db --weights "priority=0.3,overdue=0.2"
+"""
+
+import sys
+import argparse
+from pathlib import Path
+
+from connector import DataBaseConnection
+from table import QueueTable
+
+
+def parse_weights(weights_str: str) -> list[float]:
+    """Парсит строку вида 'priority=0.3,overdue=0.2'"""
+    if not weights_str:
+        return {}
+
+    weights = {}
+    for pair in weights_str.split(','):
+        if '=' in pair:
+            key, value = pair.split('=')
+            weights[key.strip()] = float(value.strip())
+        else:
+            # Поддержка формата "0.3,0.2,0.5"
+            pass
+
+
+    pos = ['overdue', 'execution', 'profitability', 'bottleneck', 'turnover', 'readiness']
+    weights_by_position = [weights.get(pos_i, None) for pos_i in pos]
+    return weights_by_position
+
+
+
+def main():
+    parser = argparse.ArgumentParser(
+        prog='prodopt',
+        usage='prodopt [OPTIONS]',
+        description='Оптимизация очереди производства деталей'
+    )
+
+    # Обязательные
+    parser.add_argument(
+        '--db', '-d',
+        type=Path,
+        required=True,
+        metavar='ФАЙЛ',
+        help='Путь к SQLite базе данных'
+    )
+
+    parser.add_argument(
+        '--method', '-m',
+        choices=['additive', 'best-point'],
+        default='additive',
+        required=True,
+        help='Метод оптимизации'
+    )
+
+    # Опциональные
+    parser.add_argument(
+        '--output', '-o',
+        type=Path,
+        default=Path('optimization_report.csv'),
+        required=False,
+        help='Файл для отчета'
+    )
+
+    parser.add_argument(
+        '--tables',
+        nargs=2,
+        default=['details', 'production_priority', 'criteria_trend'],
+        metavar=('ДЕТАЛИ', 'ПРИОРИТЕТЫ'),
+        required=False,
+        help='Имена таблиц: детали приоритеты'
+    )
+
+    parser.add_argument(
+        '--weights', '-w',
+        type=str,
+        required=False,
+        help='Веса в формате "критерий=вес,..."'
+    )
+
+    args = parser.parse_args()
+
+    # Твоя логика оптимизации здесь
+    db_name = args.db
+    method_name = args.method
+    tables = args.tables
+    output = args.output
+    weights = parse_weights(args.weights)
+
+    # print(db_name, method_name, tables, output, weights,  sep='\n')
+
+    db_conn = DataBaseConnection(db_name)
+    table = QueueTable(db_conn, *tables)
+    table.load_data()
+    table.normalization()
+    methods = {
+        'additive': QueueTable.additive_method,
+        'best-point': QueueTable.best_point_method
+    }
+    table.queue_sorting(methods[method_name], weights)
+    table.report(folder_path=output)
+
+
+    # "overdue=0.3,execution=0.2,profitability=0.25,bottleneck=0.15,turnover=0.05,readiness=0.05"
+
+if __name__ == '__main__':
+    sys.exit(main())
