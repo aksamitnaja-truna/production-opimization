@@ -30,15 +30,26 @@ class DataBaseConnection:
                     )
             ''')
 
+    def create_criteria_trend_table(self):
+        self.cursor.execute(
+            ''' CREATE TABLE IF NOT EXISTS criteria_trend (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                criteria TEXT NOT NULL,
+                trend TEXT NOT NULL
+            )
+        ''')
+
     def load_test_data(self):
-        # Сначала создаем таблицы
-        self.create_details_table()
-        self.create_production_priority_table()
-
-
-
+        # удаляем
         self.cursor.execute('DROP TABLE IF EXISTS details')
         self.cursor.execute('DROP TABLE IF EXISTS production_priority')
+        self.cursor.execute('DROP TABLE IF EXISTS criteria_trend')
+
+
+        # создаем таблицы
+        self.create_details_table()
+        self.create_production_priority_table()
+        self.create_criteria_trend_table()
 
 
         # Данные для таблицы details
@@ -134,16 +145,11 @@ class DataBaseConnection:
             (5, 4, 40, 5200.00, 92, 1.2, 89),
             (5, -1, 141, 299.00, 101, 0.29, 29)
         ]
-        #
-        # 'overdue': 'max',
-        # 'execution': 'min',
-        # 'profitability': 'max',
-        # 'bottleneck_load': 'min',
-        # 'turnover_rate': 'max',
-        # 'tech_readiness': 'max'}
-        worst = [min, max, min, max, min, min]
-        min_p = [worst[i - 1](feature) for i, feature in  enumerate(zip(*priority_data)) if i >= 1]
-        print(min_p)
+        # worst = [min, max, min, max, min, min]
+        # min_p = [worst[i - 1](feature) for i, feature in enumerate(zip(*priority_data)) if i >= 1]
+        # print(min_p)
+
+
 
         priority_data = [(i, random.sample(details_data, 1)[0][0], *row) for i, row in enumerate(priority_data)]
 
@@ -154,6 +160,22 @@ class DataBaseConnection:
             (id, detail_id, priority, overdue, execution, profitability, bottleneck_load, turnover_rate, tech_readiness) 
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)''',
             priority_data
+        )
+
+        trend = [
+            (0, 'overdue', 'max'),
+            (1, 'execution', 'min'),
+            (2, 'profitability', 'max'),
+            (3, 'bottleneck_load', 'min'),
+            (4, 'turnover_rate', 'max'),
+            (5, 'tech_readiness', 'max')
+        ]
+
+        self.cursor.executemany(
+            '''INSERT INTO criteria_trend 
+            (id, criteria, trend) 
+            VALUES (?, ?, ?)''',
+            trend
         )
 
         self.conn.commit()

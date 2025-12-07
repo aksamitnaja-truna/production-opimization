@@ -14,7 +14,8 @@ def task():
     db_conn.load_test_data()
 
     # create Table model
-    table = QueueTable(db_conn)
+    table_names = ['details', 'production_priority', 'criteria_trend']
+    table = QueueTable(db_conn, *table_names)
 
     # load data from db to model
     table.load_data()

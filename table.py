@@ -6,40 +6,49 @@ from priority import str_prior
 
 
 class QueueTable:
-    def __init__(self, db_conn):
+    def __init__(
+            self,
+            db_conn,
+            details_table_name,
+            production_priority_table_name,
+            criteria_trend_table_name,
+        ):
+
         self.db_conn = db_conn
         self.details_table = None
         self.production_priority_table = None
+        self.table_names = [
+            details_table_name,
+            production_priority_table_name,
+            criteria_trend_table_name
+        ]
 
         self.table =  None
         self.sorted_table = None
         self.trend = None
-        self.value_map = None
 
         self.consensus_points = None
 
     def load_data(self):
-        for table_name in ('details', 'production_priority'):
+        local_table_names = ['details', 'production_priority', 'criteria_trend']
+        for local_table_name, table_name in zip(local_table_names, self.table_names)   :
             try:
                 self.db_conn.cursor.execute(f"SELECT * FROM {table_name}")
                 rows = self.db_conn.cursor.fetchall()
                 columns = [description[0] for description in self.db_conn.cursor.description]
-                if table_name == 'details':
+                if local_table_name == 'details':
                     self.details_table = [columns, *rows]
-                elif table_name == 'production_priority':
+                elif local_table_name == 'production_priority':
                     self.production_priority_table = [columns, *rows]
+                elif local_table_name == 'criteria_trend':
+                    criteria_trend_table = [*rows]
+                    self.trend = dict()
+                    for row in criteria_trend_table:
+                        self.trend[row[1]] = row[2]
             except Exception as e:
                 print(f"Ошибка при загрузке данных из таблицы '{table_name}': {e}")
                 return None
 
-
-        self.trend = {'priority': 'max',
-                      'overdue': 'max',
-                      'execution': 'min',
-                      'profitability': 'max',
-                      'bottleneck_load': 'min',
-                      'turnover_rate': 'max',
-                      'tech_readiness': 'max'}
 
 
 
@@ -110,11 +119,10 @@ class QueueTable:
     def best_point_method(p1, k=None):
         if k is None:
             k = [1 for _ in p1]
-            total = 0
         else:
-            pass
-    # sum lambda = 1
-
+            if sum(k) != 1 or len(k) != len(p1):
+                raise Exception
+        total = 0
 
         for i in range(len(p1)):
             total += k[i] * (1 - p1[i])**2
@@ -123,15 +131,11 @@ class QueueTable:
     @staticmethod
     def additive_method(point: list[float], factors=None) -> float:
         if factors is None:
-            factors = {
-                'priority': 0.25,
-                'overdue': 0.20,
-                'execution': 0.15,
-                'profitability': 0.10,
-                'bottleneck_load': 0.10,
-                'turnover_rate': 0.10,
-                'tech_readiness': 0.10
-            }
+            factors = [1 for _ in p1]
+        else:
+            if sum(factors) != 1 or len(factors) != len(p1):
+                raise Exception
+
         return  sum([value * factor for value, factor in zip(point, factors.values())])
 
 
